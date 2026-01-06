@@ -23,8 +23,8 @@ ROS版本：ROS2 humble
 
 ```bash
 cd ~/yourspace_ws/src
-git clone https://github.com/rst-tu-dortmund/costmap_converter.git -b ros2
-git clone https://github.com/rst-tu-dortmund/teb_local_planner.git -b ros2-master
+git clone https://github.com/xiaoxiaoxi0024/ros2_teb_local_planner/tree/1ea9d382072fe7a290c78393c471db438e675a27/src/costmap_converter
+git clone https://github.com/xiaoxiaoxi0024/ros2_teb_local_planner/tree/1ea9d382072fe7a290c78393c471db438e675a27/src/teb_local_planner
 ```
 
 **安装依赖**
@@ -40,14 +40,29 @@ rosdep install -i --from-path src --rosdistro humble -y  #cd ~/yourspace_ws/
 
 **创建新的工作空间**
 ```bash
-mkdir -p  ~/teb_ws/src
-cd ~/teb_ws/src
-git clone https://github.com/rst-tu-dortmund/costmap_converter.git -b ros2
-git clone https://github.com/rst-tu-dortmund/teb_local_planner.git -b ros2-master
+mkdir -p  ~/teb_ws/
+cd ~/teb_ws/
+git clone https://github.com/xiaoxiaoxi0024/ros2_teb_local_planner.git
 ```
 
 **安装依赖**
 ```bash
-rosdep install -i --from-path src --rosdistro humble -y  #cd ~/yourspace_ws/
+cd ~/teb_ws/
+chmod +x install_dependencies.sh
+bash ./install_dependencies.sh
+```
+
+**运行仿真**
+```bash
+cd ~/teb_ws/
+colcon build
+source install/setup.bash
+ros2 launch fishbot_description gazebo_sim.launch.py
+```
+打开另一个终端
+```bash
+cd ~/teb_ws/
+source install/setup.bash
+ros2 launch fishbot_navigation2 navigation2.launch.py
 ```
 
