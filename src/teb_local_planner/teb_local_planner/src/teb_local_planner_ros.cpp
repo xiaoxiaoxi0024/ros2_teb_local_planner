@@ -177,6 +177,28 @@
      node->get_parameter("controller_frequency", controller_frequency);
      failure_detector_.setBufferLength(std::round(cfg_->recovery.oscillation_filter_duration*controller_frequency));
      
+      // 初始化环境宽度估计器
+      if (cfg_->env_width.enable_width_estimation)  // 检查是否启用宽度估计功能
+      {
+        // 创建环境宽度估计器的智能指针实例
+        // 传入核心配置参数：射线数量、射线间距、EMA平滑因子
+        env_width_estimator_ = std::make_shared<EnvironmentWidthEstimator>(
+          cfg_->env_width.num_rays,
+          cfg_->env_width.ray_spacing,
+          cfg_->env_width.ema_alpha);
+        
+        // 打印初始化成功的日志（包含关键参数，便于调试）
+        RCLCPP_INFO(logger_, "环境宽度估计器初始化完成 | 射线数量: %d 条, 射线间距: %.2f 米, EMA平滑因子: %.2f",
+                    cfg_->env_width.num_rays, cfg_->env_width.ray_spacing, cfg_->env_width.ema_alpha);
+      }
+      else
+      {
+        // 禁用时将智能指针置空，避免野指针
+        env_width_estimator_ = nullptr;
+        // 打印禁用日志，明确功能状态
+        RCLCPP_INFO(logger_, "环境宽度估计器已禁用。");
+      }   
+     
      // set initialized flag
      initialized_ = true;
  
@@ -343,6 +365,56 @@
    
    // also consider custom obstacles (must be called after other updates, since the container is not cleared)
    updateObstacleContainerWithCustomObstacles();
+   
+    // 基于环境宽度估计结果，自适应调整轨迹优化的约束和权重
+    if (env_width_estimator_)  // 检查宽度估计器实例是否有效（非空）
+    {
+      // 调用估计器核心方法，计算当前环境的走廊宽度
+      // 传入参数：机器人当前位姿(x/y/航向角)、代价地图、最大搜索距离
+      double corridor_width = env_width_estimator_->estimateCorridorWidth(
+        robot_pose_.x(), robot_pose_.y(), robot_pose_.theta(),
+        costmap_, cfg_->env_width.max_search_distance);
+      
+      // 仅当宽度估计值有效（>0）时，执行后续的模式切换和参数调整
+      if (corridor_width > 0)
+      {
+        // 根据估计的宽度、阈值和滞回带，判断当前环境状态（正常/狭窄）
+        int current_state = env_width_estimator_->getState(
+          cfg_->env_width.width_threshold, cfg_->env_width.hysteresis_band);
+        
+        // 打印调试日志：记录当前估计宽度和环境状态（仅DEBUG级别输出，不影响运行效率）
+        RCLCPP_DEBUG(logger_, "走廊宽度估计结果 | 宽度: %.3f 米, 环境状态: %s",
+                    corridor_width, (current_state == 0) ? "正常模式" : "狭窄模式");
+        
+        // 根据环境状态，应用对应的运动约束和轨迹优化权重
+        if (current_state == 1)  // 狭窄模式
+        {
+          // 1. 调整机器人运动约束：降低最大线速度、角速度，提高最小障碍物距离
+          cfg_->robot.max_vel_x = cfg_->env_width.narrow_max_vel_x;
+          cfg_->robot.max_vel_theta = cfg_->env_width.narrow_max_vel_theta;
+          cfg_->obstacles.min_obstacle_dist = cfg_->env_width.narrow_min_obstacle_dist;
+          
+          // 2. 调整轨迹优化代价函数权重：启用/应用狭窄模式的平滑权重
+          if (cfg_->env_width.enable_curvature_smoothing)
+            cfg_->optim.weight_shortest_path = cfg_->env_width.weight_curvature_smoothing_narrow;
+          if (cfg_->env_width.enable_angular_smoothing)
+            cfg_->optim.weight_prefer_rotdir = cfg_->env_width.weight_angular_smoothing_narrow;
+        }
+        else  // 正常模式（current_state == 0）
+        {
+          // 1. 恢复机器人基础运动约束（使用默认的基准参数）
+          cfg_->robot.max_vel_x = cfg_->robot.base_max_vel_x;
+          cfg_->robot.max_vel_theta = cfg_->robot.base_max_vel_theta;
+          cfg_->obstacles.min_obstacle_dist = cfg_->obstacles.inflation_dist;
+          
+          // 2. 恢复轨迹优化的基础权重（正常模式的平滑权重）
+          if (cfg_->env_width.enable_curvature_smoothing)
+            cfg_->optim.weight_shortest_path = cfg_->env_width.weight_curvature_smoothing_normal;
+          if (cfg_->env_width.enable_angular_smoothing)
+            cfg_->optim.weight_prefer_rotdir = cfg_->env_width.weight_angular_smoothing_normal;
+        }
+      }
+    }   
    
      
    // Do not allow config changes during the following optimization step

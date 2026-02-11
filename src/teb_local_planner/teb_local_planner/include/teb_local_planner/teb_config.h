@@ -231,6 +231,31 @@ public:
     int divergence_detection_max_chi_squared; //!< Maximum acceptable Mahalanobis distance above which it is assumed that the optimization diverged.
   } recovery; //!< Parameters related to recovery and backup strategies
 
+ //! 环境宽度估计器相关参数
+struct EnvironmentWidthEstimator
+{
+    bool enable_width_estimation; //!< 启用基于侧向射线投射的实时环境宽度估计功能
+    int num_rays; //!< 垂直于机器人前进方向投射的平行射线数量（典型值为5-9条）
+    double ray_spacing; //!< 机器人纵轴方向上相邻射线的间距 [米]
+    double ema_alpha; //!< 指数移动平均（EMA）平滑因子（取值范围0.0-1.0）；0.0表示禁用EMA平滑
+    double width_threshold; //!< 切换正常模式/狭窄模式的宽度阈值 [米]
+    double hysteresis_band; //!< 模式切换的滞回带宽度 [米]
+    double max_search_distance; //!< 射线投射的最大搜索距离 [米]；0.0表示无限制
+    
+    // 狭窄模式下的约束调整参数
+    double narrow_max_vel_x; //!< 狭窄模式下的最大平移速度（前进方向）
+    double narrow_max_vel_theta; //!< 狭窄模式下的最大角速度
+    double narrow_min_obstacle_dist; //!< 狭窄模式下的最小障碍物距离
+    
+    // 足式机器人专用代价函数权重（自适应轨迹优化）
+    bool enable_curvature_smoothing; //!< 启用曲率平滑代价项（J_kappa）
+    double weight_curvature_smoothing_normal; //!< 正常模式下的曲率平滑权重
+    double weight_curvature_smoothing_narrow; //!< 狭窄模式下的曲率平滑权重
+    
+    bool enable_angular_smoothing; //!< 启用角速度连续性代价项（J_omega_dot）
+    double weight_angular_smoothing_normal; //!< 正常模式下的角速度平滑权重
+    double weight_angular_smoothing_narrow; //!< 狭窄模式下的角速度平滑权重
+} env_width; //!< 环境宽度估计器相关参数实例
 
   /**
   * @brief Construct the TebConfig using default values.
@@ -387,6 +412,30 @@ public:
     recovery.oscillation_filter_duration = 10;
     recovery.divergence_detection_enable = false;
     recovery.divergence_detection_max_chi_squared = 10;
+
+    // 环境宽度估计器参数配置
+    // 核心射线投射配置（宽度估计基础）
+    env_width.enable_width_estimation = true;    // 启用环境宽度实时估计功能
+    env_width.num_rays = 5;                      // 投射5条垂直于前进方向的平行射线
+    env_width.ray_spacing = 0.1;                 // 相邻射线的纵向间距为0.1米（5条射线覆盖0.4米纵向范围）
+    env_width.ema_alpha = 0.3;                   // EMA平滑因子0.3（新测量值占30%，历史值占70%，过滤噪声）
+    env_width.width_threshold = 0.6;             // 模式切换阈值：0.6米（核心判断环境宽窄的基准）
+    env_width.hysteresis_band = 0.1;             // 滞回带0.1米（避免阈值附近频繁切换模式）
+    env_width.max_search_distance = 2.0;         // 射线最大探测距离2.0米（只关注2米内的障碍物）
+
+    // 狭窄模式运动约束（安全限制）
+    env_width.narrow_max_vel_x = 0.2;            // 狭窄模式下最大前进速度0.2米/秒
+    env_width.narrow_max_vel_theta = 0.15;       // 狭窄模式下最大角速度0.15弧度/秒（约8.6°/秒）
+    env_width.narrow_min_obstacle_dist = 0.3;    // 狭窄模式下与障碍物的最小安全距离0.3米
+
+    // 足式机器人轨迹优化权重（平滑性控制）
+    env_width.enable_curvature_smoothing = true; // 启用曲率平滑代价项
+    env_width.weight_curvature_smoothing_normal = 0.1;  // 正常模式曲率平滑权重0.1（轻度平滑）
+    env_width.weight_curvature_smoothing_narrow = 0.5;  // 狭窄模式曲率平滑权重0.5（重度平滑，避免急转弯）
+
+    env_width.enable_angular_smoothing = true;   // 启用角速度连续性代价项
+    env_width.weight_angular_smoothing_normal = 0.3;    // 正常模式角速度平滑权重0.3
+    env_width.weight_angular_smoothing_narrow = 1.0;    // 狭窄模式角速度平滑权重1.0（旋转更平稳）
   }
   
   void declareParameters(const nav2_util::LifecycleNode::SharedPtr, const std::string name);

@@ -13,21 +13,25 @@ def generate_launch_description():
     rviz_config_dir = os.path.join(
         nav2_bringup_dir, 'rviz', 'nav2_default_view.rviz')
     
+    # 设置默认值
+    default_map_yaml = os.path.join(fishbot_navigation2_dir, 'maps', 'room.yaml')
+    default_nav2_params = os.path.join(fishbot_navigation2_dir, 'config', 'nav2_params.yaml')
+    
     # 创建 Launch 配置
     use_sim_time = launch.substitutions.LaunchConfiguration(
         'use_sim_time', default='true')
     map_yaml_path = launch.substitutions.LaunchConfiguration(
-        'map', default=os.path.join(fishbot_navigation2_dir, 'maps', 'room.yaml'))
+        'map', default=default_map_yaml)
     nav2_param_path = launch.substitutions.LaunchConfiguration(
-        'params_file', default=os.path.join(fishbot_navigation2_dir, 'config', 'nav2_params.yaml'))
+        'params_file', default=default_nav2_params)
 
     return launch.LaunchDescription([
         # 声明新的 Launch 参数
-        launch.actions.DeclareLaunchArgument('use_sim_time', default_value=use_sim_time,
+        launch.actions.DeclareLaunchArgument('use_sim_time', default_value='true',
                                              description='Use simulation (Gazebo) clock if true'),
-        launch.actions.DeclareLaunchArgument('map', default_value=map_yaml_path,
+        launch.actions.DeclareLaunchArgument('map', default_value=default_map_yaml,
                                              description='Full path to map file to load'),
-        launch.actions.DeclareLaunchArgument('params_file', default_value=nav2_param_path,
+        launch.actions.DeclareLaunchArgument('params_file', default_value=default_nav2_params,
                                              description='Full path to param file to load'),
 
         launch.actions.IncludeLaunchDescription(

@@ -51,6 +51,7 @@
 #include "teb_local_planner/homotopy_class_planner.h"
 #include "teb_local_planner/visualization.h"
 #include "teb_local_planner/recovery_behaviors.h"
+#include "teb_local_planner/environment_width_estimator.h"
 
 // message types
 #include <nav_msgs/msg/path.hpp>
@@ -380,6 +381,7 @@ private:
   TebVisualizationPtr visualization_; //!< Instance of the visualization class (local/global plan, obstacles, ...)
   std::shared_ptr<dwb_critics::ObstacleFootprintCritic> costmap_model_;
   FailureDetector failure_detector_; //!< Detect if the robot got stucked
+  EnvironmentWidthEstimatorPtr env_width_estimator_; //!< 用于自适应轨迹优化的环境宽度估计器实例（智能指针）
   
   std::vector<geometry_msgs::msg::PoseStamped> global_plan_; //!< Store the current global plan
   
