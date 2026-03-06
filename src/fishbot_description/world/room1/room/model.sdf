@@ -1,21 +1,21 @@
 <?xml version='1.0'?>
 <sdf version='1.7'>
   <model name='room'>
-    <pose>-1.265 -2.4425 0 0 -0 0</pose>
-    <link name='Wall_2'>
-      <collision name='Wall_2_Collision'>
+    <pose>-1.86956 -2.53902 0 0 -0 0</pose>
+    <link name='Wall_13'>
+      <collision name='Wall_13_Collision'>
         <geometry>
           <box>
-            <size>6.5 0.15 2.5</size>
+            <size>16.75 0.15 2.5</size>
           </box>
         </geometry>
         <pose>0 0 1.25 0 -0 0</pose>
       </collision>
-      <visual name='Wall_2_Visual'>
+      <visual name='Wall_13_Visual'>
         <pose>0 0 1.25 0 -0 0</pose>
         <geometry>
           <box>
-            <size>6.5 0.15 2.5</size>
+            <size>16.75 0.15 2.5</size>
           </box>
         </geometry>
         <material>
@@ -29,22 +29,22 @@
           <layer>0</layer>
         </meta>
       </visual>
-      <pose>4.04 -2.3675 0 0 -0 3.14159</pose>
+      <pose>-0 1.0838 0 0 -0 3.14159</pose>
     </link>
-    <link name='Wall_5'>
-      <collision name='Wall_5_Collision'>
+    <link name='Wall_4'>
+      <collision name='Wall_4_Collision'>
         <geometry>
           <box>
-            <size>15 0.15 2.5</size>
+            <size>6.25 0.15 2.5</size>
           </box>
         </geometry>
         <pose>0 0 1.25 0 -0 0</pose>
       </collision>
-      <visual name='Wall_5_Visual'>
+      <visual name='Wall_4_Visual'>
         <pose>0 0 1.25 0 -0 0</pose>
         <geometry>
           <box>
-            <size>15 0.15 2.5</size>
+            <size>6.25 0.15 2.5</size>
           </box>
         </geometry>
         <material>
@@ -58,7 +58,7 @@
           <layer>0</layer>
         </meta>
       </visual>
-      <pose>0 0.8125 0 0 -0 3.14159</pose>
+      <pose>4.98913 -2.46402 0 0 -0 3.14159</pose>
     </link>
     <static>1</static>
   </model>
