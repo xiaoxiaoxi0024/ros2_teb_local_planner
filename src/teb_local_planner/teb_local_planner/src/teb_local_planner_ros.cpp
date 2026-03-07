@@ -386,32 +386,20 @@
         RCLCPP_DEBUG(logger_, "走廊宽度估计结果 | 宽度: %.3f 米, 环境状态: %s",
                     corridor_width, (current_state == 0) ? "正常模式" : "狭窄模式");
         
-        // 根据环境状态，应用对应的运动约束和轨迹优化权重
+        // 根据环境状态，应用对应的运动约束
         if (current_state == 1)  // 狭窄模式
         {
-          // 1. 调整机器人运动约束：降低最大线速度、角速度，提高最小障碍物距离
+          // 1. 调整机器人运动约束：降低最大线速度、角速度，适度减小最小障碍物距离
           cfg_->robot.max_vel_x = cfg_->env_width.narrow_max_vel_x;
           cfg_->robot.max_vel_theta = cfg_->env_width.narrow_max_vel_theta;
           cfg_->obstacles.min_obstacle_dist = cfg_->env_width.narrow_min_obstacle_dist;
-          
-          // 2. 调整轨迹优化代价函数权重：启用/应用狭窄模式的平滑权重
-          if (cfg_->env_width.enable_curvature_smoothing)
-            cfg_->optim.weight_shortest_path = cfg_->env_width.weight_curvature_smoothing_narrow;
-          if (cfg_->env_width.enable_angular_smoothing)
-            cfg_->optim.weight_prefer_rotdir = cfg_->env_width.weight_angular_smoothing_narrow;
         }
         else  // 正常模式（current_state == 0）
         {
           // 1. 恢复机器人基础运动约束（使用默认的基准参数）
           cfg_->robot.max_vel_x = cfg_->robot.base_max_vel_x;
           cfg_->robot.max_vel_theta = cfg_->robot.base_max_vel_theta;
-          cfg_->obstacles.min_obstacle_dist = cfg_->obstacles.inflation_dist;
-          
-          // 2. 恢复轨迹优化的基础权重（正常模式的平滑权重）
-          if (cfg_->env_width.enable_curvature_smoothing)
-            cfg_->optim.weight_shortest_path = cfg_->env_width.weight_curvature_smoothing_normal;
-          if (cfg_->env_width.enable_angular_smoothing)
-            cfg_->optim.weight_prefer_rotdir = cfg_->env_width.weight_angular_smoothing_normal;
+          cfg_->obstacles.min_obstacle_dist = cfg_->obstacles.base_min_obstacle_dist;
         }
       }
     }   

@@ -129,6 +129,7 @@ public:
   //! Obstacle related parameters
   struct Obstacles
   {
+    double base_min_obstacle_dist; //!< Baseline minimum desired separation from obstacles before runtime adaptation is applied
     double min_obstacle_dist; //!< Minimum desired separation from obstacles
     double inflation_dist; //!< buffer zone around obstacles with non-zero penalty costs (should be larger than min_obstacle_dist in order to take effect)
     double dynamic_obstacle_inflation_dist; //!< Buffer zone around predicted locations of dynamic obstacles with non-zero penalty costs (should be larger than min_obstacle_dist in order to take effect)
@@ -305,9 +306,9 @@ struct EnvironmentWidthEstimator
     robot.max_vel_y = 0.0;
     robot.max_vel_theta = 0.3;
     robot.base_max_vel_x = robot.max_vel_x;
-    robot.base_max_vel_x_backwards = robot.base_max_vel_x_backwards;
-    robot.base_max_vel_y = robot.base_max_vel_y;
-    robot.base_max_vel_theta = robot.base_max_vel_theta;
+    robot.base_max_vel_x_backwards = robot.max_vel_x_backwards;
+    robot.base_max_vel_y = robot.max_vel_y;
+    robot.base_max_vel_theta = robot.max_vel_theta;
     robot.acc_lim_x = 0.5;
     robot.acc_lim_y = 0.5;
     robot.acc_lim_theta = 0.5;
@@ -325,6 +326,7 @@ struct EnvironmentWidthEstimator
     // Obstacles
 
     obstacles.min_obstacle_dist = 0.5;
+    obstacles.base_min_obstacle_dist = obstacles.min_obstacle_dist;
     obstacles.inflation_dist = 0.6;
     obstacles.dynamic_obstacle_inflation_dist = 0.6;
     obstacles.include_dynamic_obstacles = true;
@@ -415,25 +417,25 @@ struct EnvironmentWidthEstimator
 
     // 环境宽度估计器参数配置
     // 核心射线投射配置（宽度估计基础）
-    env_width.enable_width_estimation = true;    // 启用环境宽度实时估计功能
+    env_width.enable_width_estimation = false;   // 默认关闭，避免在未显式调参时触发激进的运行时约束切换
     env_width.num_rays = 5;                      // 投射5条垂直于前进方向的平行射线
-    env_width.ray_spacing = 0.1;                 // 相邻射线的纵向间距为0.1米（5条射线覆盖0.4米纵向范围）
-    env_width.ema_alpha = 0.3;                   // EMA平滑因子0.3（新测量值占30%，历史值占70%，过滤噪声）
-    env_width.width_threshold = 0.6;             // 模式切换阈值：0.6米（核心判断环境宽窄的基准）
-    env_width.hysteresis_band = 0.1;             // 滞回带0.1米（避免阈值附近频繁切换模式）
-    env_width.max_search_distance = 2.0;         // 射线最大探测距离2.0米（只关注2米内的障碍物）
+    env_width.ray_spacing = 0.05;                // 相邻射线的纵向间距为0.05米，更适合小型差速机器人
+    env_width.ema_alpha = 0.15;                  // 更强的低通平滑，减少阈值附近抖动
+    env_width.width_threshold = 0.42;            // 面向小车的保守阈值，避免过早进入狭窄模式
+    env_width.hysteresis_band = 0.12;            // 更宽的滞回带，降低模式频繁切换概率
+    env_width.max_search_distance = 1.0;         // 仅关注近场环境，减少远处障碍对局部控制的扰动
 
     // 狭窄模式运动约束（安全限制）
-    env_width.narrow_max_vel_x = 0.2;            // 狭窄模式下最大前进速度0.2米/秒
-    env_width.narrow_max_vel_theta = 0.15;       // 狭窄模式下最大角速度0.15弧度/秒（约8.6°/秒）
-    env_width.narrow_min_obstacle_dist = 0.3;    // 狭窄模式下与障碍物的最小安全距离0.3米
+    env_width.narrow_max_vel_x = 0.12;           // 狭窄模式下进一步降速，但保留前进能力
+    env_width.narrow_max_vel_theta = 0.45;       // 保留足够转向能力，避免原地卡死
+    env_width.narrow_min_obstacle_dist = 0.18;   // 避免把可行空间收得比机器人实际尺寸还保守
 
     // 足式机器人轨迹优化权重（平滑性控制）
-    env_width.enable_curvature_smoothing = true; // 启用曲率平滑代价项
+    env_width.enable_curvature_smoothing = false; // 默认关闭，避免复用现有权重造成轨迹发飘
     env_width.weight_curvature_smoothing_normal = 0.1;  // 正常模式曲率平滑权重0.1（轻度平滑）
     env_width.weight_curvature_smoothing_narrow = 0.5;  // 狭窄模式曲率平滑权重0.5（重度平滑，避免急转弯）
 
-    env_width.enable_angular_smoothing = true;   // 启用角速度连续性代价项
+    env_width.enable_angular_smoothing = false;  // 默认关闭，避免干扰振荡恢复逻辑
     env_width.weight_angular_smoothing_normal = 0.3;    // 正常模式角速度平滑权重0.3
     env_width.weight_angular_smoothing_narrow = 1.0;    // 狭窄模式角速度平滑权重1.0（旋转更平稳）
   }

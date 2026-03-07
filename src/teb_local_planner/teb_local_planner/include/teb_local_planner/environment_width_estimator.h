@@ -85,7 +85,7 @@ public:
    * @param hysteresis_band 滞回带宽度 [米]
    * @return 0 表示正常状态，1 表示狭窄状态
    */
-  int getState(double width_threshold, double hysteresis_band) const;
+  int getState(double width_threshold, double hysteresis_band);
 
   /**
    * @brief 重置所有滤波器（清空历史数据）

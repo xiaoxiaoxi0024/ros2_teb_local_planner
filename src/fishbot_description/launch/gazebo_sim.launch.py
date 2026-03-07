@@ -13,6 +13,10 @@ def generate_launch_description():
     action_declare_arg_mode_path = launch.actions.DeclareLaunchArgument(
         name='model', default_value=str(default_model_path),
         description='URDF 的绝对路径')
+    action_declare_arg_use_sim_time = launch.actions.DeclareLaunchArgument(
+        name='use_sim_time', default_value='true',
+        description='是否使用仿真时间 /clock')
+    use_sim_time = launch.substitutions.LaunchConfiguration('use_sim_time')
     # 获取文件内容生成新的参数
     robot_description = launch_ros.parameter_descriptions.ParameterValue(
         launch.substitutions.Command(
@@ -22,7 +26,10 @@ def generate_launch_description():
     robot_state_publisher_node = launch_ros.actions.Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
-        parameters=[{'robot_description': robot_description}]
+        parameters=[{
+            'robot_description': robot_description,
+            'use_sim_time': use_sim_time,
+        }]
     )
 
     # 通过 IncludeLaunchDescription 包含另外一个 launch 文件
@@ -37,7 +44,8 @@ def generate_launch_description():
         package='gazebo_ros',
         executable='spawn_entity.py',
         arguments=['-topic', '/robot_description',
-                   '-entity', robot_name_in_model, ])
+                   '-entity', robot_name_in_model, ],
+        parameters=[{'use_sim_time': use_sim_time}])
     
     # 加载并激活 fishbot_joint_state_broadcaster 控制器
     load_joint_state_controller = launch.actions.ExecuteProcess(
@@ -57,6 +65,7 @@ def generate_launch_description():
     
     return launch.LaunchDescription([
         action_declare_arg_mode_path,
+        action_declare_arg_use_sim_time,
         robot_state_publisher_node,
         launch_gazebo,
         spawn_entity_node,

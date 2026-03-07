@@ -42,6 +42,8 @@
 #include <limits>
 #include <numeric>
 
+#include <nav2_costmap_2d/cost_values.hpp>
+
 namespace teb_local_planner
 {
 
@@ -188,13 +190,12 @@ bool EnvironmentWidthEstimator::isCellOccupied(
   }
 
   // Check cell cost
-  // In costmap_2d, cells with cost >= LETHAL_OBSTACLE (254) are obstacles
-  // cells with cost = INSCRIBED_INFLATED_OBSTACLE (253) are inflation zones
-  // cells with cost < INSCRIBED_INFLATED_OBSTACLE are free space
+  // For corridor estimation, inflation cells should still count as traversable space,
+  // otherwise narrow-mode is triggered too aggressively and the planner tends to stall.
   unsigned char cost = costmap->getCost(mx, my);
-  const unsigned char INSCRIBED_INFLATED_OBSTACLE = 253;
-  
-  return cost >= INSCRIBED_INFLATED_OBSTACLE;
+
+    return cost == nav2_costmap_2d::LETHAL_OBSTACLE ||
+      cost == nav2_costmap_2d::NO_INFORMATION;
 }
 
 double EnvironmentWidthEstimator::computeMedian(std::vector<double> values)
@@ -212,15 +213,17 @@ double EnvironmentWidthEstimator::computeMedian(std::vector<double> values)
   }
 }
 
-int EnvironmentWidthEstimator::getState(double width_threshold, double hysteresis_band) const
+int EnvironmentWidthEstimator::getState(double width_threshold, double hysteresis_band)
 {
+  previous_state_ = current_state_;
+
   if (smoothed_width_ < width_threshold - hysteresis_band / 2.0) {
-    return 1;  // Narrow state
+    current_state_ = 1;  // Narrow state
   } else if (smoothed_width_ > width_threshold + hysteresis_band / 2.0) {
-    return 0;  // Normal state
-  } else {
-    return current_state_;  // Stay in current state (hysteresis)
+    current_state_ = 0;  // Normal state
   }
+
+  return current_state_;  // Stay in current state inside the hysteresis band
 }
 
 void EnvironmentWidthEstimator::reset()

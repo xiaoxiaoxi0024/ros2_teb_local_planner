@@ -225,7 +225,7 @@ controller_server:
       h_signature_prescaler: 0.5
       h_signature_threshold: 0.1
       obstacle_heading_threshold: 0.45
-      switching_blocking_period: 0.0
+      switching_blocking_period: 1.0
       viapoints_all_candidates: True
       delete_detours_backwards: True
       max_ratio_detours_duration_best_duration: 3.0
@@ -233,13 +233,26 @@ controller_server:
       visualize_with_time_as_z_axis_scale: 0.0
 
       # Recovery
-      shrink_horizon_backup: True
+      shrink_horizon_backup: False
       shrink_horizon_min_duration: 10.0
       oscillation_recovery: True
-      oscillation_v_eps: 0.1
-      oscillation_omega_eps: 0.1
-      oscillation_recovery_min_duration: 5.0
-      oscillation_filter_duration: 10.0
+      oscillation_v_eps: 0.05
+      oscillation_omega_eps: 0.05
+      oscillation_recovery_min_duration: 2.0
+      oscillation_filter_duration: 4.0
+
+      enable_width_estimation: false
+      num_rays: 5
+      ray_spacing: 0.05
+      ema_alpha: 0.15
+      width_threshold: 0.42
+      hysteresis_band: 0.12
+      max_search_distance: 1.0
+      narrow_max_vel_x: 0.12
+      narrow_max_vel_theta: 0.45
+      narrow_min_obstacle_dist: 0.18
+      enable_curvature_smoothing: false
+      enable_angular_smoothing: false
 
 local_costmap:
   local_costmap:

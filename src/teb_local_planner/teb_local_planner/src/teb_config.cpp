@@ -86,6 +86,7 @@ void TebConfig::declareParameters(const nav2_util::LifecycleNode::SharedPtr nh, 
   declare_parameter_if_not_declared(nh, name + "." + "free_goal_vel", rclcpp::ParameterValue(goal_tolerance.free_goal_vel));
 
   // Obstacles
+  declare_parameter_if_not_declared(nh, name + "." + "base_min_obstacle_dist", rclcpp::ParameterValue(obstacles.base_min_obstacle_dist));
   declare_parameter_if_not_declared(nh, name + "." + "min_obstacle_dist", rclcpp::ParameterValue(obstacles.min_obstacle_dist));
   declare_parameter_if_not_declared(nh, name + "." + "inflation_dist", rclcpp::ParameterValue(obstacles.inflation_dist));
   declare_parameter_if_not_declared(nh, name + "." + "dynamic_obstacle_inflation_dist", rclcpp::ParameterValue(obstacles.dynamic_obstacle_inflation_dist));
@@ -167,6 +168,24 @@ void TebConfig::declareParameters(const nav2_util::LifecycleNode::SharedPtr nh, 
   declare_parameter_if_not_declared(nh, name + "." + "divergence_detection_enable", rclcpp::ParameterValue(recovery.divergence_detection_enable));
   declare_parameter_if_not_declared(nh, name + "." + "divergence_detection_max_chi_squared", rclcpp::ParameterValue(recovery.divergence_detection_max_chi_squared));
 
+  // Environment width estimation
+  declare_parameter_if_not_declared(nh, name + "." + "enable_width_estimation", rclcpp::ParameterValue(env_width.enable_width_estimation));
+  declare_parameter_if_not_declared(nh, name + "." + "num_rays", rclcpp::ParameterValue(env_width.num_rays));
+  declare_parameter_if_not_declared(nh, name + "." + "ray_spacing", rclcpp::ParameterValue(env_width.ray_spacing));
+  declare_parameter_if_not_declared(nh, name + "." + "ema_alpha", rclcpp::ParameterValue(env_width.ema_alpha));
+  declare_parameter_if_not_declared(nh, name + "." + "width_threshold", rclcpp::ParameterValue(env_width.width_threshold));
+  declare_parameter_if_not_declared(nh, name + "." + "hysteresis_band", rclcpp::ParameterValue(env_width.hysteresis_band));
+  declare_parameter_if_not_declared(nh, name + "." + "max_search_distance", rclcpp::ParameterValue(env_width.max_search_distance));
+  declare_parameter_if_not_declared(nh, name + "." + "narrow_max_vel_x", rclcpp::ParameterValue(env_width.narrow_max_vel_x));
+  declare_parameter_if_not_declared(nh, name + "." + "narrow_max_vel_theta", rclcpp::ParameterValue(env_width.narrow_max_vel_theta));
+  declare_parameter_if_not_declared(nh, name + "." + "narrow_min_obstacle_dist", rclcpp::ParameterValue(env_width.narrow_min_obstacle_dist));
+  declare_parameter_if_not_declared(nh, name + "." + "enable_curvature_smoothing", rclcpp::ParameterValue(env_width.enable_curvature_smoothing));
+  declare_parameter_if_not_declared(nh, name + "." + "weight_curvature_smoothing_normal", rclcpp::ParameterValue(env_width.weight_curvature_smoothing_normal));
+  declare_parameter_if_not_declared(nh, name + "." + "weight_curvature_smoothing_narrow", rclcpp::ParameterValue(env_width.weight_curvature_smoothing_narrow));
+  declare_parameter_if_not_declared(nh, name + "." + "enable_angular_smoothing", rclcpp::ParameterValue(env_width.enable_angular_smoothing));
+  declare_parameter_if_not_declared(nh, name + "." + "weight_angular_smoothing_normal", rclcpp::ParameterValue(env_width.weight_angular_smoothing_normal));
+  declare_parameter_if_not_declared(nh, name + "." + "weight_angular_smoothing_narrow", rclcpp::ParameterValue(env_width.weight_angular_smoothing_narrow));
+
   // footprint model
   declare_parameter_if_not_declared(nh, name + "." + "footprint_model.type", rclcpp::ParameterType::PARAMETER_STRING);
 }
@@ -213,7 +232,9 @@ void TebConfig::loadRosParamFromNodeHandle(const nav2_util::LifecycleNode::Share
   nh->get_parameter_or(name + "." + "free_goal_vel", goal_tolerance.free_goal_vel, goal_tolerance.free_goal_vel);
 
   // Obstacles
+  nh->get_parameter_or(name + "." + "base_min_obstacle_dist", obstacles.base_min_obstacle_dist, obstacles.base_min_obstacle_dist);
   nh->get_parameter_or(name + "." + "min_obstacle_dist", obstacles.min_obstacle_dist, obstacles.min_obstacle_dist);
+  obstacles.base_min_obstacle_dist = obstacles.min_obstacle_dist;
   nh->get_parameter_or(name + "." + "inflation_dist", obstacles.inflation_dist, obstacles.inflation_dist);
   nh->get_parameter_or(name + "." + "dynamic_obstacle_inflation_dist", obstacles.dynamic_obstacle_inflation_dist, obstacles.dynamic_obstacle_inflation_dist);
   nh->get_parameter_or(name + "." + "include_dynamic_obstacles", obstacles.include_dynamic_obstacles, obstacles.include_dynamic_obstacles);
@@ -293,6 +314,24 @@ void TebConfig::loadRosParamFromNodeHandle(const nav2_util::LifecycleNode::Share
   nh->get_parameter_or(name + "." + "oscillation_filter_duration", recovery.oscillation_filter_duration, recovery.oscillation_filter_duration);
   nh->get_parameter_or(name + "." + "divergence_detection_enable", recovery.divergence_detection_enable, recovery.divergence_detection_enable);
   nh->get_parameter_or(name + "." + "divergence_detection_max_chi_squared", recovery.divergence_detection_max_chi_squared, recovery.divergence_detection_max_chi_squared);
+
+  // Environment width estimation
+  nh->get_parameter_or(name + "." + "enable_width_estimation", env_width.enable_width_estimation, env_width.enable_width_estimation);
+  nh->get_parameter_or(name + "." + "num_rays", env_width.num_rays, env_width.num_rays);
+  nh->get_parameter_or(name + "." + "ray_spacing", env_width.ray_spacing, env_width.ray_spacing);
+  nh->get_parameter_or(name + "." + "ema_alpha", env_width.ema_alpha, env_width.ema_alpha);
+  nh->get_parameter_or(name + "." + "width_threshold", env_width.width_threshold, env_width.width_threshold);
+  nh->get_parameter_or(name + "." + "hysteresis_band", env_width.hysteresis_band, env_width.hysteresis_band);
+  nh->get_parameter_or(name + "." + "max_search_distance", env_width.max_search_distance, env_width.max_search_distance);
+  nh->get_parameter_or(name + "." + "narrow_max_vel_x", env_width.narrow_max_vel_x, env_width.narrow_max_vel_x);
+  nh->get_parameter_or(name + "." + "narrow_max_vel_theta", env_width.narrow_max_vel_theta, env_width.narrow_max_vel_theta);
+  nh->get_parameter_or(name + "." + "narrow_min_obstacle_dist", env_width.narrow_min_obstacle_dist, env_width.narrow_min_obstacle_dist);
+  nh->get_parameter_or(name + "." + "enable_curvature_smoothing", env_width.enable_curvature_smoothing, env_width.enable_curvature_smoothing);
+  nh->get_parameter_or(name + "." + "weight_curvature_smoothing_normal", env_width.weight_curvature_smoothing_normal, env_width.weight_curvature_smoothing_normal);
+  nh->get_parameter_or(name + "." + "weight_curvature_smoothing_narrow", env_width.weight_curvature_smoothing_narrow, env_width.weight_curvature_smoothing_narrow);
+  nh->get_parameter_or(name + "." + "enable_angular_smoothing", env_width.enable_angular_smoothing, env_width.enable_angular_smoothing);
+  nh->get_parameter_or(name + "." + "weight_angular_smoothing_normal", env_width.weight_angular_smoothing_normal, env_width.weight_angular_smoothing_normal);
+  nh->get_parameter_or(name + "." + "weight_angular_smoothing_narrow", env_width.weight_angular_smoothing_narrow, env_width.weight_angular_smoothing_narrow);
 
   // footprint model
   if (!nh->get_parameter(name + "." + "footprint_model.type", model_name))
@@ -493,8 +532,12 @@ rcl_interfaces::msg::SetParametersResult
       }
       // GoalTolerance
       // Obstacles
+      else if (name == node_name + ".base_min_obstacle_dist") {
+        obstacles.base_min_obstacle_dist = parameter.as_double();
+      }
       else if (name == node_name + ".min_obstacle_dist") {
         obstacles.min_obstacle_dist = parameter.as_double();
+        obstacles.base_min_obstacle_dist = parameter.as_double();
       } else if (name == node_name + ".inflation_dist") {
         obstacles.inflation_dist = parameter.as_double();
       } else if (name == node_name + ".dynamic_obstacle_inflation_dist") {
@@ -601,6 +644,30 @@ rcl_interfaces::msg::SetParametersResult
         recovery.oscillation_filter_duration = parameter.as_double();
       } else if (name == node_name + ".divergence_detection_max_chi_squared") {
         recovery.divergence_detection_max_chi_squared = parameter.as_double();
+      } else if (name == node_name + ".ray_spacing") {
+        env_width.ray_spacing = parameter.as_double();
+      } else if (name == node_name + ".ema_alpha") {
+        env_width.ema_alpha = parameter.as_double();
+      } else if (name == node_name + ".width_threshold") {
+        env_width.width_threshold = parameter.as_double();
+      } else if (name == node_name + ".hysteresis_band") {
+        env_width.hysteresis_band = parameter.as_double();
+      } else if (name == node_name + ".max_search_distance") {
+        env_width.max_search_distance = parameter.as_double();
+      } else if (name == node_name + ".narrow_max_vel_x") {
+        env_width.narrow_max_vel_x = parameter.as_double();
+      } else if (name == node_name + ".narrow_max_vel_theta") {
+        env_width.narrow_max_vel_theta = parameter.as_double();
+      } else if (name == node_name + ".narrow_min_obstacle_dist") {
+        env_width.narrow_min_obstacle_dist = parameter.as_double();
+      } else if (name == node_name + ".weight_curvature_smoothing_normal") {
+        env_width.weight_curvature_smoothing_normal = parameter.as_double();
+      } else if (name == node_name + ".weight_curvature_smoothing_narrow") {
+        env_width.weight_curvature_smoothing_narrow = parameter.as_double();
+      } else if (name == node_name + ".weight_angular_smoothing_normal") {
+        env_width.weight_angular_smoothing_normal = parameter.as_double();
+      } else if (name == node_name + ".weight_angular_smoothing_narrow") {
+        env_width.weight_angular_smoothing_narrow = parameter.as_double();
       }
       // Footprint model
       else if (name == node_name + ".footprint_model.radius") {
@@ -663,6 +730,9 @@ rcl_interfaces::msg::SetParametersResult
         hcp.roadmap_graph_no_samples = parameter.as_int();
       }
       // Recovery
+      else if (name == node_name + ".num_rays") {
+        env_width.num_rays = parameter.as_int();
+      }
     }
 
     else if (type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL) {
@@ -721,6 +791,13 @@ rcl_interfaces::msg::SetParametersResult
         hcp.delete_detours_backwards = parameter.as_bool();
       }
       // Recovery
+      else if (name == node_name + ".enable_width_estimation") {
+        env_width.enable_width_estimation = parameter.as_bool();
+      } else if (name == node_name + ".enable_curvature_smoothing") {
+        env_width.enable_curvature_smoothing = parameter.as_bool();
+      } else if (name == node_name + ".enable_angular_smoothing") {
+        env_width.enable_angular_smoothing = parameter.as_bool();
+      }
       else if (name == node_name + ".shrink_horizon_backup") {
         recovery.shrink_horizon_backup = parameter.as_bool();
       } else if (name == node_name + ".oscillation_recovery") {

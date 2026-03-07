@@ -12,6 +12,10 @@ def generate_launch_description():
     action_declare_arg_mode_path = launch.actions.DeclareLaunchArgument(
         name='model', default_value=str(default_model_path),
         description='URDF 的绝对路径')
+    action_declare_arg_use_sim_time = launch.actions.DeclareLaunchArgument(
+        name='use_sim_time', default_value='false',
+        description='是否使用仿真时间 /clock')
+    use_sim_time = launch.substitutions.LaunchConfiguration('use_sim_time')
     # 获取文件内容生成新的参数
     robot_description = launch_ros.parameter_descriptions.ParameterValue(
         launch.substitutions.Command(
@@ -21,21 +25,27 @@ def generate_launch_description():
     robot_state_publisher_node = launch_ros.actions.Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
-        parameters=[{'robot_description': robot_description}]
+        parameters=[{
+            'robot_description': robot_description,
+            'use_sim_time': use_sim_time,
+        }]
     )
     # 关节状态发布节点
     joint_state_publisher_node = launch_ros.actions.Node(
         package='joint_state_publisher',
         executable='joint_state_publisher',
+        parameters=[{'use_sim_time': use_sim_time}],
     )
     # RViz 节点
     rviz_node = launch_ros.actions.Node(
         package='rviz2',
         executable='rviz2',
-        arguments=['-d', default_rviz_config_path]
+        arguments=['-d', default_rviz_config_path],
+        parameters=[{'use_sim_time': use_sim_time}],
     )
     return launch.LaunchDescription([
         action_declare_arg_mode_path,
+        action_declare_arg_use_sim_time,
         joint_state_publisher_node,
         robot_state_publisher_node,
         rviz_node
