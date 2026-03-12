@@ -148,13 +148,13 @@ controller_server:
       plugin: "teb_local_planner::TebLocalPlannerROS"
 
       teb_autosize: 1.0
-      dt_ref: 0.2
-      dt_hysteresis: 0.05
+      dt_ref: 0.15
+      dt_hysteresis: 0.03
       max_samples: 500
       global_plan_overwrite_orientation: true
-      allow_init_with_backwards_motion: true
+      allow_init_with_backwards_motion: false
       max_global_plan_lookahead_dist: 3.0
-      global_plan_viapoint_sep: 0.3
+      global_plan_viapoint_sep: 0.2
       global_plan_prune_distance: 1.0
       exact_arc_length: False
       feasibility_check_no_poses: 5
@@ -162,7 +162,8 @@ controller_server:
           
       # Robot
       max_vel_x: 0.26
-      max_vel_theta: 1.0 
+      max_vel_x_backwards: 0.05
+      max_vel_theta: 1.0
       acc_lim_x: 2.5
       acc_lim_theta: 3.2
 
@@ -174,7 +175,7 @@ controller_server:
       free_goal_vel: False
           
       # Obstacles
-      min_obstacle_dist: 0.27
+      min_obstacle_dist: 0.22
       inflation_dist: 0.6
       include_costmap_obstacles: True
       costmap_obstacles_behind_robot_dist: 1.0
@@ -193,18 +194,18 @@ controller_server:
       optimization_activate: True
       optimization_verbose: False
       penalty_epsilon: 0.1
-      obstacle_cost_exponent: 4.0
+      obstacle_cost_exponent: 2.5
       weight_max_vel_x: 0.5
       weight_max_vel_theta: 0.5
       weight_acc_lim_x: 0.5
       weight_acc_lim_theta: 10.5
       weight_kinematics_nh: 1000.0
-      weight_kinematics_forward_drive: 3.0
+      weight_kinematics_forward_drive: 100.0
       weight_kinematics_turning_radius: 1.0
       weight_optimaltime: 1.0
       weight_shortest_path: 0.0
-      weight_obstacle: 100.0
-      weight_inflation: 0.2
+      weight_obstacle: 60.0
+      weight_inflation: 0.1
       weight_dynamic_obstacle: 10.0
       weight_dynamic_obstacle_inflation: 0.2
       weight_viapoint: 50.0
@@ -214,8 +215,8 @@ controller_server:
       enable_homotopy_class_planning: True
       enable_multithreading: True
       max_number_classes: 4
-      selection_cost_hysteresis: 5.0
-      selection_prefer_initial_plan: 1.0
+      selection_cost_hysteresis: 1.5
+      selection_prefer_initial_plan: 0.9
       selection_obst_cost_scale: 1.0
       selection_alternative_time_cost: True
 
@@ -225,7 +226,7 @@ controller_server:
       h_signature_prescaler: 0.5
       h_signature_threshold: 0.1
       obstacle_heading_threshold: 0.45
-      switching_blocking_period: 1.0
+      switching_blocking_period: 2.0
       viapoints_all_candidates: True
       delete_detours_backwards: True
       max_ratio_detours_duration_best_duration: 3.0
@@ -270,8 +271,8 @@ local_costmap:
       plugins: ["voxel_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 2.5
-        inflation_radius: 0.35
+        cost_scaling_factor: 2.0
+        inflation_radius: 0.25
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
         enabled: True
@@ -325,8 +326,9 @@ global_costmap:
         map_subscribe_transient_local: True
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 2.5
-        inflation_radius: 0.35
+        cost_scaling_factor: 2.0
+        inflation_radius: 0.25
+
       always_send_full_costmap: True
 
 map_server:
@@ -412,7 +414,7 @@ velocity_smoother:
     scale_velocities: False
     feedback: "OPEN_LOOP"
     max_velocity: [0.26, 0.0, 1.0]
-    min_velocity: [-0.26, 0.0, -1.0]
+    min_velocity: [-0.05, 0.0, -1.0]
     max_accel: [2.5, 0.0, 3.2]
     max_decel: [-2.5, 0.0, -3.2]
     odom_topic: "odom"

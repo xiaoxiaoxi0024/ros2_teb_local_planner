@@ -689,6 +689,26 @@ protected:
    * @see optimizeGraph
    */
   void AddEdgesVelocityObstacleRatio();
+
+  /**
+   * @brief Add all edges (local cost functions) for curvature smoothing (legged-robot-specific J_kappa)
+   *
+   * Penalizes spatial bending energy of the trajectory to suppress oscillatory motions.
+   * @see EdgeCurvatureSmoothing
+   * @see buildGraph
+   * @see optimizeGraph
+   */
+  void AddEdgesCurvatureSmoothing();
+
+  /**
+   * @brief Add all edges (local cost functions) for angular velocity continuity (legged-robot-specific J_omega_dot)
+   *
+   * Penalizes angular velocity changes between consecutive segments to ensure smooth turning transitions.
+   * @see EdgeAngularSmoothing
+   * @see buildGraph
+   * @see optimizeGraph
+   */
+  void AddEdgesAngularSmoothing();
   
   //@}
   

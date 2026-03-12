@@ -256,6 +256,10 @@ struct EnvironmentWidthEstimator
     bool enable_angular_smoothing; //!< 启用角速度连续性代价项（J_omega_dot）
     double weight_angular_smoothing_normal; //!< 正常模式下的角速度平滑权重
     double weight_angular_smoothing_narrow; //!< 狭窄模式下的角速度平滑权重
+
+    // 运行时活跃权重（由 teb_local_planner_ros 根据环境状态动态设置）
+    double weight_curvature_smoothing; //!< 当前生效的曲率平滑权重（0 = 不添加代价边）
+    double weight_angular_smoothing;   //!< 当前生效的角速度平滑权重（0 = 不添加代价边）
 } env_width; //!< 环境宽度估计器相关参数实例
 
   /**
@@ -438,6 +442,10 @@ struct EnvironmentWidthEstimator
     env_width.enable_angular_smoothing = false;  // 默认关闭，避免干扰振荡恢复逻辑
     env_width.weight_angular_smoothing_normal = 0.3;    // 正常模式角速度平滑权重0.3
     env_width.weight_angular_smoothing_narrow = 1.0;    // 狭窄模式角速度平滑权重1.0（旋转更平稳）
+
+    // 运行时活跃权重（默认为0，由 teb_local_planner_ros 在初始化/运行中设置）
+    env_width.weight_curvature_smoothing = 0.0;
+    env_width.weight_angular_smoothing = 0.0;
   }
   
   void declareParameters(const nav2_util::LifecycleNode::SharedPtr, const std::string name);

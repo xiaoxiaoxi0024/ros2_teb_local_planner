@@ -197,7 +197,13 @@
         env_width_estimator_ = nullptr;
         // 打印禁用日志，明确功能状态
         RCLCPP_INFO(logger_, "环境宽度估计器已禁用。");
-      }   
+      }
+
+      // 初始化足式机器人特定代价函数的活跃权重（默认使用 Normal 模式权重）
+      if (cfg_->env_width.enable_curvature_smoothing)
+        cfg_->env_width.weight_curvature_smoothing = cfg_->env_width.weight_curvature_smoothing_normal;
+      if (cfg_->env_width.enable_angular_smoothing)
+        cfg_->env_width.weight_angular_smoothing = cfg_->env_width.weight_angular_smoothing_normal;   
      
      // set initialized flag
      initialized_ = true;
@@ -393,6 +399,11 @@
           cfg_->robot.max_vel_x = cfg_->env_width.narrow_max_vel_x;
           cfg_->robot.max_vel_theta = cfg_->env_width.narrow_max_vel_theta;
           cfg_->obstacles.min_obstacle_dist = cfg_->env_width.narrow_min_obstacle_dist;
+          // 2. 应用 Narrow 模式的足式机器人特定代价函数权重
+          if (cfg_->env_width.enable_curvature_smoothing)
+            cfg_->env_width.weight_curvature_smoothing = cfg_->env_width.weight_curvature_smoothing_narrow;
+          if (cfg_->env_width.enable_angular_smoothing)
+            cfg_->env_width.weight_angular_smoothing = cfg_->env_width.weight_angular_smoothing_narrow;
         }
         else  // 正常模式（current_state == 0）
         {
@@ -400,6 +411,11 @@
           cfg_->robot.max_vel_x = cfg_->robot.base_max_vel_x;
           cfg_->robot.max_vel_theta = cfg_->robot.base_max_vel_theta;
           cfg_->obstacles.min_obstacle_dist = cfg_->obstacles.base_min_obstacle_dist;
+          // 2. 恢复 Normal 模式的足式机器人特定代价函数权重
+          if (cfg_->env_width.enable_curvature_smoothing)
+            cfg_->env_width.weight_curvature_smoothing = cfg_->env_width.weight_curvature_smoothing_normal;
+          if (cfg_->env_width.enable_angular_smoothing)
+            cfg_->env_width.weight_angular_smoothing = cfg_->env_width.weight_angular_smoothing_normal;
         }
       }
     }   

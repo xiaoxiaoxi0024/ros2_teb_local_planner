@@ -53,6 +53,8 @@
 #include <teb_local_planner/g2o_types/edge_dynamic_obstacle.h>
 #include <teb_local_planner/g2o_types/edge_via_point.h>
 #include <teb_local_planner/g2o_types/edge_prefer_rotdir.h>
+#include <teb_local_planner/g2o_types/edge_curvature_smoothing.h>
+#include <teb_local_planner/g2o_types/edge_angular_smoothing.h>
 
 #include <memory>
 #include <limits>
@@ -363,6 +365,10 @@ bool TebOptimalPlanner::buildGraph(double weight_multiplier)
 
   if (cfg_->optim.weight_velocity_obstacle_ratio > 0)
     AddEdgesVelocityObstacleRatio();
+
+  // Legged-robot-specific cost functions (Chapter IV-C)
+  AddEdgesCurvatureSmoothing();
+  AddEdgesAngularSmoothing();
     
   return true;  
 }
@@ -1019,6 +1025,54 @@ void TebOptimalPlanner::AddEdgesVelocityObstacleRatio()
       edge->setParameters(*cfg_, cfg_->robot_model.get(), obstacle.get());
       optimizer_->addEdge(edge);
     }
+  }
+}
+
+void TebOptimalPlanner::AddEdgesCurvatureSmoothing()
+{
+  // 检查是否启用曲率平滑以及活跃权重是否大于0
+  if (!cfg_->env_width.enable_curvature_smoothing ||
+      cfg_->env_width.weight_curvature_smoothing == 0)
+    return;  // 权重为零则跳过
+
+  Eigen::Matrix<double,1,1> information;
+  information.fill(cfg_->env_width.weight_curvature_smoothing);
+
+  // 曲率平滑边需要三个连续位姿: p_{i}, p_{i+1}, p_{i+2}
+  for (int i = 0; i < teb_.sizePoses() - 2; ++i)
+  {
+    EdgeCurvatureSmoothing* curvature_edge = new EdgeCurvatureSmoothing;
+    curvature_edge->setVertex(0, teb_.PoseVertex(i));
+    curvature_edge->setVertex(1, teb_.PoseVertex(i + 1));
+    curvature_edge->setVertex(2, teb_.PoseVertex(i + 2));
+    curvature_edge->setInformation(information);
+    curvature_edge->setTebConfig(*cfg_);
+    optimizer_->addEdge(curvature_edge);
+  }
+}
+
+void TebOptimalPlanner::AddEdgesAngularSmoothing()
+{
+  // 检查是否启用角速度平滑以及活跃权重是否大于0
+  if (!cfg_->env_width.enable_angular_smoothing ||
+      cfg_->env_width.weight_angular_smoothing == 0)
+    return;  // 权重为零则跳过
+
+  Eigen::Matrix<double,1,1> information;
+  information.fill(cfg_->env_width.weight_angular_smoothing);
+
+  // 角速度平滑边需要三个连续位姿和两个时间差: s_{i}, s_{i+1}, s_{i+2}, dt_i, dt_{i+1}
+  for (int i = 0; i < teb_.sizePoses() - 2; ++i)
+  {
+    EdgeAngularSmoothing* angular_edge = new EdgeAngularSmoothing;
+    angular_edge->setVertex(0, teb_.PoseVertex(i));
+    angular_edge->setVertex(1, teb_.PoseVertex(i + 1));
+    angular_edge->setVertex(2, teb_.PoseVertex(i + 2));
+    angular_edge->setVertex(3, teb_.TimeDiffVertex(i));
+    angular_edge->setVertex(4, teb_.TimeDiffVertex(i + 1));
+    angular_edge->setInformation(information);
+    angular_edge->setTebConfig(*cfg_);
+    optimizer_->addEdge(angular_edge);
   }
 }
 
