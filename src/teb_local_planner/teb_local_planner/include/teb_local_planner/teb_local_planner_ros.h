@@ -362,6 +362,14 @@ protected:
    */
   void setSpeedLimit(const double & speed_limit,  const bool & percentage);
 
+  void applyEnvironmentAdaptation(double corridor_width, int current_state);
+  double computeAdaptiveWeight(double corridor_width, double narrow_weight, double normal_weight) const;
+  bool buildNarrowFootprintModel(
+    RobotFootprintModelPtr & robot_model,
+    std::vector<geometry_msgs::msg::Point> & footprint_spec,
+    double & inscribed_radius,
+    double & circumscribed_radius) const;
+
 private:
   // Definition of member variables
   rclcpp_lifecycle::LifecycleNode::WeakPtr nh_;
@@ -382,6 +390,12 @@ private:
   std::shared_ptr<dwb_critics::ObstacleFootprintCritic> costmap_model_;
   FailureDetector failure_detector_; //!< Detect if the robot got stucked
   EnvironmentWidthEstimatorPtr env_width_estimator_; //!< 用于自适应轨迹优化的环境宽度估计器实例（智能指针）
+  RobotFootprintModelPtr base_robot_model_; //!< 正常模式下使用的基准 footprint 模型
+  std::vector<geometry_msgs::msg::Point> base_footprint_spec_; //!< 正常模式下的碰撞检测 footprint
+  double base_robot_inscribed_radius_{0.0}; //!< 正常模式 footprint 的内切半径
+  double base_robot_circumscribed_radius_{0.0}; //!< 正常模式 footprint 的外接半径
+  bool narrow_footprint_available_{false}; //!< 是否成功解析了狭窄模式 footprint
+  int adaptive_env_state_{0}; //!< 当前环境状态：0=Normal, 1=Narrow
   
   std::vector<geometry_msgs::msg::PoseStamped> global_plan_; //!< Store the current global plan
   
@@ -424,5 +438,4 @@ public:
 }; // end namespace teb_local_planner
 
 #endif // TEB_LOCAL_PLANNER_ROS_H_
-
 

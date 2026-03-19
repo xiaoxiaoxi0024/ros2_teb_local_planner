@@ -104,6 +104,7 @@ public:
     double base_max_vel_x_backwards; //!< Maximum translational velocity of the robot for driving backwards before speed limit is applied
     double base_max_vel_y; //!< Maximum strafing velocity of the robot (should be zero for non-holonomic robots!) before speed limit is applied
     double base_max_vel_theta; //!< Maximum angular velocity of the robot before speed limit is applied
+    double base_min_turning_radius; //!< Baseline minimum turning radius before runtime adaptation is applied
     double max_vel_x; //!< Maximum translational velocity of the robot
     double max_vel_x_backwards; //!< Maximum translational velocity of the robot for driving backwards
     double max_vel_y; //!< Maximum strafing velocity of the robot (should be zero for non-holonomic robots!)
@@ -240,13 +241,17 @@ struct EnvironmentWidthEstimator
     double ray_spacing; //!< 机器人纵轴方向上相邻射线的间距 [米]
     double ema_alpha; //!< 指数移动平均（EMA）平滑因子（取值范围0.0-1.0）；0.0表示禁用EMA平滑
     double width_threshold; //!< 切换正常模式/狭窄模式的宽度阈值 [米]
-    double hysteresis_band; //!< 模式切换的滞回带宽度 [米]
+    double hysteresis_band; //!< 模式切换的单侧滞回边界 [米]，实际阈值为 width_threshold ± hysteresis_band
     double max_search_distance; //!< 射线投射的最大搜索距离 [米]；0.0表示无限制
     
     // 狭窄模式下的约束调整参数
     double narrow_max_vel_x; //!< 狭窄模式下的最大平移速度（前进方向）
     double narrow_max_vel_theta; //!< 狭窄模式下的最大角速度
     double narrow_min_obstacle_dist; //!< 狭窄模式下的最小障碍物距离
+    double narrow_min_turning_radius; //!< 狭窄模式下的最小转弯半径
+    bool enable_dynamic_footprint; //!< 是否在狭窄模式下切换到紧凑 footprint
+    std::string narrow_footprint_vertices; //!< 狭窄模式 footprint 顶点字符串（nav2 footprint 格式）
+    double sigmoid_alpha; //!< 连续权重调度的 sigmoid 斜率
     
     // 足式机器人专用代价函数权重（自适应轨迹优化）
     bool enable_curvature_smoothing; //!< 启用曲率平滑代价项（J_kappa）
@@ -313,6 +318,7 @@ struct EnvironmentWidthEstimator
     robot.base_max_vel_x_backwards = robot.max_vel_x_backwards;
     robot.base_max_vel_y = robot.max_vel_y;
     robot.base_max_vel_theta = robot.max_vel_theta;
+    robot.base_min_turning_radius = robot.min_turning_radius;
     robot.acc_lim_x = 0.5;
     robot.acc_lim_y = 0.5;
     robot.acc_lim_theta = 0.5;
@@ -433,6 +439,10 @@ struct EnvironmentWidthEstimator
     env_width.narrow_max_vel_x = 0.12;           // 狭窄模式下进一步降速，但保留前进能力
     env_width.narrow_max_vel_theta = 0.45;       // 保留足够转向能力，避免原地卡死
     env_width.narrow_min_obstacle_dist = 0.18;   // 避免把可行空间收得比机器人实际尺寸还保守
+    env_width.narrow_min_turning_radius = 0.0;   // 狭窄模式允许原地转向
+    env_width.enable_dynamic_footprint = false;  // 默认关闭，需要显式提供狭窄 footprint
+    env_width.narrow_footprint_vertices = "";    // 空字符串表示不切换 footprint
+    env_width.sigmoid_alpha = 5.0;               // 与论文中的平滑调度斜率一致
 
     // 足式机器人轨迹优化权重（平滑性控制）
     env_width.enable_curvature_smoothing = false; // 默认关闭，避免复用现有权重造成轨迹发飘

@@ -252,6 +252,10 @@ controller_server:
       narrow_max_vel_x: 0.12
       narrow_max_vel_theta: 0.45
       narrow_min_obstacle_dist: 0.18
+      narrow_min_turning_radius: 0.0
+      enable_dynamic_footprint: false
+      narrow_footprint_vertices: "[[0.17, 0.10], [0.17, -0.10], [-0.17, -0.10], [-0.17, 0.10]]"
+      sigmoid_alpha: 5.0
       enable_curvature_smoothing: false
       enable_angular_smoothing: false
 

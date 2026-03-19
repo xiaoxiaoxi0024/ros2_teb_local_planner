@@ -179,6 +179,10 @@ void TebConfig::declareParameters(const nav2_util::LifecycleNode::SharedPtr nh, 
   declare_parameter_if_not_declared(nh, name + "." + "narrow_max_vel_x", rclcpp::ParameterValue(env_width.narrow_max_vel_x));
   declare_parameter_if_not_declared(nh, name + "." + "narrow_max_vel_theta", rclcpp::ParameterValue(env_width.narrow_max_vel_theta));
   declare_parameter_if_not_declared(nh, name + "." + "narrow_min_obstacle_dist", rclcpp::ParameterValue(env_width.narrow_min_obstacle_dist));
+  declare_parameter_if_not_declared(nh, name + "." + "narrow_min_turning_radius", rclcpp::ParameterValue(env_width.narrow_min_turning_radius));
+  declare_parameter_if_not_declared(nh, name + "." + "enable_dynamic_footprint", rclcpp::ParameterValue(env_width.enable_dynamic_footprint));
+  declare_parameter_if_not_declared(nh, name + "." + "narrow_footprint_vertices", rclcpp::ParameterValue(env_width.narrow_footprint_vertices));
+  declare_parameter_if_not_declared(nh, name + "." + "sigmoid_alpha", rclcpp::ParameterValue(env_width.sigmoid_alpha));
   declare_parameter_if_not_declared(nh, name + "." + "enable_curvature_smoothing", rclcpp::ParameterValue(env_width.enable_curvature_smoothing));
   declare_parameter_if_not_declared(nh, name + "." + "weight_curvature_smoothing_normal", rclcpp::ParameterValue(env_width.weight_curvature_smoothing_normal));
   declare_parameter_if_not_declared(nh, name + "." + "weight_curvature_smoothing_narrow", rclcpp::ParameterValue(env_width.weight_curvature_smoothing_narrow));
@@ -220,10 +224,15 @@ void TebConfig::loadRosParamFromNodeHandle(const nav2_util::LifecycleNode::Share
   nh->get_parameter_or(name + "." + "max_vel_x_backwards", robot.max_vel_x_backwards, robot.max_vel_x_backwards);
   nh->get_parameter_or(name + "." + "max_vel_y", robot.max_vel_y, robot.max_vel_y);
   nh->get_parameter_or(name + "." + "max_vel_theta", robot.max_vel_theta, robot.max_vel_theta);
+  robot.base_max_vel_x = robot.max_vel_x;
+  robot.base_max_vel_x_backwards = robot.max_vel_x_backwards;
+  robot.base_max_vel_y = robot.max_vel_y;
+  robot.base_max_vel_theta = robot.max_vel_theta;
   nh->get_parameter_or(name + "." + "acc_lim_x", robot.acc_lim_x, robot.acc_lim_x);
   nh->get_parameter_or(name + "." + "acc_lim_y", robot.acc_lim_y, robot.acc_lim_y);
   nh->get_parameter_or(name + "." + "acc_lim_theta", robot.acc_lim_theta, robot.acc_lim_theta);
   nh->get_parameter_or(name + "." + "min_turning_radius", robot.min_turning_radius, robot.min_turning_radius);
+  robot.base_min_turning_radius = robot.min_turning_radius;
   nh->get_parameter_or(name + "." + "wheelbase", robot.wheelbase, robot.wheelbase);
   nh->get_parameter_or(name + "." + "cmd_angle_instead_rotvel", robot.cmd_angle_instead_rotvel, robot.cmd_angle_instead_rotvel);
   nh->get_parameter_or(name + "." + "is_footprint_dynamic", robot.is_footprint_dynamic, robot.is_footprint_dynamic);
@@ -326,6 +335,10 @@ void TebConfig::loadRosParamFromNodeHandle(const nav2_util::LifecycleNode::Share
   nh->get_parameter_or(name + "." + "narrow_max_vel_x", env_width.narrow_max_vel_x, env_width.narrow_max_vel_x);
   nh->get_parameter_or(name + "." + "narrow_max_vel_theta", env_width.narrow_max_vel_theta, env_width.narrow_max_vel_theta);
   nh->get_parameter_or(name + "." + "narrow_min_obstacle_dist", env_width.narrow_min_obstacle_dist, env_width.narrow_min_obstacle_dist);
+  nh->get_parameter_or(name + "." + "narrow_min_turning_radius", env_width.narrow_min_turning_radius, env_width.narrow_min_turning_radius);
+  nh->get_parameter_or(name + "." + "enable_dynamic_footprint", env_width.enable_dynamic_footprint, env_width.enable_dynamic_footprint);
+  nh->get_parameter_or(name + "." + "narrow_footprint_vertices", env_width.narrow_footprint_vertices, env_width.narrow_footprint_vertices);
+  nh->get_parameter_or(name + "." + "sigmoid_alpha", env_width.sigmoid_alpha, env_width.sigmoid_alpha);
   nh->get_parameter_or(name + "." + "enable_curvature_smoothing", env_width.enable_curvature_smoothing, env_width.enable_curvature_smoothing);
   nh->get_parameter_or(name + "." + "weight_curvature_smoothing_normal", env_width.weight_curvature_smoothing_normal, env_width.weight_curvature_smoothing_normal);
   nh->get_parameter_or(name + "." + "weight_curvature_smoothing_narrow", env_width.weight_curvature_smoothing_narrow, env_width.weight_curvature_smoothing_narrow);
@@ -660,6 +673,10 @@ rcl_interfaces::msg::SetParametersResult
         env_width.narrow_max_vel_theta = parameter.as_double();
       } else if (name == node_name + ".narrow_min_obstacle_dist") {
         env_width.narrow_min_obstacle_dist = parameter.as_double();
+      } else if (name == node_name + ".narrow_min_turning_radius") {
+        env_width.narrow_min_turning_radius = parameter.as_double();
+      } else if (name == node_name + ".sigmoid_alpha") {
+        env_width.sigmoid_alpha = parameter.as_double();
       } else if (name == node_name + ".weight_curvature_smoothing_normal") {
         env_width.weight_curvature_smoothing_normal = parameter.as_double();
       } else if (name == node_name + ".weight_curvature_smoothing_narrow") {
@@ -793,6 +810,8 @@ rcl_interfaces::msg::SetParametersResult
       // Recovery
       else if (name == node_name + ".enable_width_estimation") {
         env_width.enable_width_estimation = parameter.as_bool();
+      } else if (name == node_name + ".enable_dynamic_footprint") {
+        env_width.enable_dynamic_footprint = parameter.as_bool();
       } else if (name == node_name + ".enable_curvature_smoothing") {
         env_width.enable_curvature_smoothing = parameter.as_bool();
       } else if (name == node_name + ".enable_angular_smoothing") {
@@ -824,6 +843,8 @@ rcl_interfaces::msg::SetParametersResult
       } else if (name == node_name + ".footprint_model.vertices") {
         reload_footprint = true;
         footprint_string = parameter.as_string();
+      } else if (name == node_name + ".narrow_footprint_vertices") {
+        env_width.narrow_footprint_vertices = parameter.as_string();
       }
     }
   }

@@ -111,13 +111,8 @@ double EnvironmentWidthEstimator::estimateCorridorWidth(
       costmap, search_distance);
   }
 
-  // Compute raw width as median of (left + right) clearances
-  std::vector<double> widths;
-  for (int i = 0; i < num_rays_; ++i) {
-    widths.push_back(left_ray_distances_[i] + right_ray_distances_[i]);
-  }
-
-  raw_width_ = computeMedian(widths);
+  // Robust corridor width estimate: median(left clearances) + median(right clearances)
+  raw_width_ = computeMedian(left_ray_distances_) + computeMedian(right_ray_distances_);
 
   // Apply EMA smoothing if enabled
   if (ema_alpha_ > 0.0) {
@@ -217,9 +212,9 @@ int EnvironmentWidthEstimator::getState(double width_threshold, double hysteresi
 {
   previous_state_ = current_state_;
 
-  if (smoothed_width_ < width_threshold - hysteresis_band / 2.0) {
+  if (smoothed_width_ < width_threshold - hysteresis_band) {
     current_state_ = 1;  // Narrow state
-  } else if (smoothed_width_ > width_threshold + hysteresis_band / 2.0) {
+  } else if (smoothed_width_ > width_threshold + hysteresis_band) {
     current_state_ = 0;  // Normal state
   }
 

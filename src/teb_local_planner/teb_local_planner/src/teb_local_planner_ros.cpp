@@ -41,6 +41,7 @@
  //#include <tf_conversions/tf_eigen.h>
  #include <boost/algorithm/string.hpp>
  
+ #include <cmath>
  #include <string>
  
  // pluginlib macros
@@ -63,9 +64,16 @@
  
  using nav2_util::declare_parameter_if_not_declared;
  
- namespace teb_local_planner
- {
-   
+namespace teb_local_planner
+{
+namespace
+{
+double sigmoidBlend(double corridor_width, double width_threshold, double alpha)
+{
+  return 1.0 / (1.0 + std::exp(-alpha * (corridor_width - width_threshold)));
+}
+}
+
  
  TebLocalPlannerROS::TebLocalPlannerROS() 
      : costmap_ros_(nullptr), tf_(nullptr), cfg_(new TebConfig()), costmap_model_(nullptr), intra_proc_node_(nullptr),
@@ -151,6 +159,22 @@
      // Get footprint of the robot and minimum and maximum distance from the center of the robot to its footprint vertices.
      footprint_spec_ = costmap_ros_->getRobotFootprint();
      nav2_costmap_2d::calculateMinAndMaxDistances(footprint_spec_, robot_inscribed_radius_, robot_circumscribed_radius);
+     base_robot_model_ = cfg_->robot_model;
+     base_footprint_spec_ = footprint_spec_;
+     base_robot_inscribed_radius_ = robot_inscribed_radius_;
+     base_robot_circumscribed_radius_ = robot_circumscribed_radius;
+     adaptive_env_state_ = 0;
+     narrow_footprint_available_ = false;
+
+     if (cfg_->env_width.enable_dynamic_footprint && !cfg_->env_width.narrow_footprint_vertices.empty())
+     {
+       RobotFootprintModelPtr narrow_robot_model;
+       std::vector<geometry_msgs::msg::Point> narrow_footprint_spec;
+       double narrow_inscribed_radius = 0.0;
+       double narrow_circumscribed_radius = 0.0;
+       narrow_footprint_available_ = buildNarrowFootprintModel(
+         narrow_robot_model, narrow_footprint_spec, narrow_inscribed_radius, narrow_circumscribed_radius);
+     }
  
      // Add callback for dynamic parameters
      dyn_params_handler = node->add_on_set_parameters_callback(
@@ -373,52 +397,22 @@
    updateObstacleContainerWithCustomObstacles();
    
     // 基于环境宽度估计结果，自适应调整轨迹优化的约束和权重
-    if (env_width_estimator_)  // 检查宽度估计器实例是否有效（非空）
+    if (env_width_estimator_)
     {
-      // 调用估计器核心方法，计算当前环境的走廊宽度
-      // 传入参数：机器人当前位姿(x/y/航向角)、代价地图、最大搜索距离
       double corridor_width = env_width_estimator_->estimateCorridorWidth(
         robot_pose_.x(), robot_pose_.y(), robot_pose_.theta(),
         costmap_, cfg_->env_width.max_search_distance);
       
-      // 仅当宽度估计值有效（>0）时，执行后续的模式切换和参数调整
       if (corridor_width > 0)
       {
-        // 根据估计的宽度、阈值和滞回带，判断当前环境状态（正常/狭窄）
         int current_state = env_width_estimator_->getState(
           cfg_->env_width.width_threshold, cfg_->env_width.hysteresis_band);
         
-        // 打印调试日志：记录当前估计宽度和环境状态（仅DEBUG级别输出，不影响运行效率）
         RCLCPP_DEBUG(logger_, "走廊宽度估计结果 | 宽度: %.3f 米, 环境状态: %s",
                     corridor_width, (current_state == 0) ? "正常模式" : "狭窄模式");
-        
-        // 根据环境状态，应用对应的运动约束
-        if (current_state == 1)  // 狭窄模式
-        {
-          // 1. 调整机器人运动约束：降低最大线速度、角速度，适度减小最小障碍物距离
-          cfg_->robot.max_vel_x = cfg_->env_width.narrow_max_vel_x;
-          cfg_->robot.max_vel_theta = cfg_->env_width.narrow_max_vel_theta;
-          cfg_->obstacles.min_obstacle_dist = cfg_->env_width.narrow_min_obstacle_dist;
-          // 2. 应用 Narrow 模式的足式机器人特定代价函数权重
-          if (cfg_->env_width.enable_curvature_smoothing)
-            cfg_->env_width.weight_curvature_smoothing = cfg_->env_width.weight_curvature_smoothing_narrow;
-          if (cfg_->env_width.enable_angular_smoothing)
-            cfg_->env_width.weight_angular_smoothing = cfg_->env_width.weight_angular_smoothing_narrow;
-        }
-        else  // 正常模式（current_state == 0）
-        {
-          // 1. 恢复机器人基础运动约束（使用默认的基准参数）
-          cfg_->robot.max_vel_x = cfg_->robot.base_max_vel_x;
-          cfg_->robot.max_vel_theta = cfg_->robot.base_max_vel_theta;
-          cfg_->obstacles.min_obstacle_dist = cfg_->obstacles.base_min_obstacle_dist;
-          // 2. 恢复 Normal 模式的足式机器人特定代价函数权重
-          if (cfg_->env_width.enable_curvature_smoothing)
-            cfg_->env_width.weight_curvature_smoothing = cfg_->env_width.weight_curvature_smoothing_normal;
-          if (cfg_->env_width.enable_angular_smoothing)
-            cfg_->env_width.weight_angular_smoothing = cfg_->env_width.weight_angular_smoothing_normal;
-        }
+        applyEnvironmentAdaptation(corridor_width, current_state);
       }
-    }   
+    }
    
      
    // Do not allow config changes during the following optimization step
@@ -535,11 +529,108 @@
    visualization_->publishViaPoints(via_points_);
    visualization_->publishGlobalPlan(global_plan_);
    
-   return cmd_vel;
- }
- 
- void TebLocalPlannerROS::updateObstacleContainerWithCostmap()
- {  
+  return cmd_vel;
+}
+
+double TebLocalPlannerROS::computeAdaptiveWeight(
+  double corridor_width, double narrow_weight, double normal_weight) const
+{
+  const double blend = sigmoidBlend(
+    corridor_width, cfg_->env_width.width_threshold, cfg_->env_width.sigmoid_alpha);
+  return narrow_weight + (normal_weight - narrow_weight) * blend;
+}
+
+bool TebLocalPlannerROS::buildNarrowFootprintModel(
+  RobotFootprintModelPtr & robot_model,
+  std::vector<geometry_msgs::msg::Point> & footprint_spec,
+  double & inscribed_radius,
+  double & circumscribed_radius) const
+{
+  if (cfg_->env_width.narrow_footprint_vertices.empty()) {
+    return false;
+  }
+
+  if (!nav2_costmap_2d::makeFootprintFromString(
+        cfg_->env_width.narrow_footprint_vertices, footprint_spec))
+  {
+    RCLCPP_WARN(
+      logger_,
+      "Failed to parse narrow footprint vertices '%s'. Keeping the base footprint.",
+      cfg_->env_width.narrow_footprint_vertices.c_str());
+    return false;
+  }
+
+  Point2dContainer polygon;
+  polygon.reserve(footprint_spec.size());
+  for (const auto & pt : footprint_spec) {
+    polygon.push_back(Eigen::Vector2d(pt.x, pt.y));
+  }
+
+  robot_model = std::make_shared<PolygonRobotFootprint>(polygon);
+  nav2_costmap_2d::calculateMinAndMaxDistances(
+    footprint_spec, inscribed_radius, circumscribed_radius);
+  return true;
+}
+
+void TebLocalPlannerROS::applyEnvironmentAdaptation(double corridor_width, int current_state)
+{
+  cfg_->robot.max_vel_x =
+    current_state == 1 ? cfg_->env_width.narrow_max_vel_x : cfg_->robot.base_max_vel_x;
+  cfg_->robot.max_vel_theta =
+    current_state == 1 ? cfg_->env_width.narrow_max_vel_theta : cfg_->robot.base_max_vel_theta;
+  cfg_->obstacles.min_obstacle_dist =
+    current_state == 1 ? cfg_->env_width.narrow_min_obstacle_dist : cfg_->obstacles.base_min_obstacle_dist;
+  cfg_->robot.min_turning_radius =
+    current_state == 1 ? cfg_->env_width.narrow_min_turning_radius : cfg_->robot.base_min_turning_radius;
+
+  if (cfg_->env_width.enable_curvature_smoothing) {
+    cfg_->env_width.weight_curvature_smoothing = computeAdaptiveWeight(
+      corridor_width,
+      cfg_->env_width.weight_curvature_smoothing_narrow,
+      cfg_->env_width.weight_curvature_smoothing_normal);
+  }
+
+  if (cfg_->env_width.enable_angular_smoothing) {
+    cfg_->env_width.weight_angular_smoothing = computeAdaptiveWeight(
+      corridor_width,
+      cfg_->env_width.weight_angular_smoothing_narrow,
+      cfg_->env_width.weight_angular_smoothing_normal);
+  }
+
+  if (current_state == 1 && cfg_->env_width.enable_dynamic_footprint) {
+    RobotFootprintModelPtr narrow_robot_model;
+    std::vector<geometry_msgs::msg::Point> narrow_footprint_spec;
+    double narrow_inscribed_radius = 0.0;
+    double narrow_circumscribed_radius = 0.0;
+
+    if (buildNarrowFootprintModel(
+          narrow_robot_model, narrow_footprint_spec,
+          narrow_inscribed_radius, narrow_circumscribed_radius))
+    {
+      cfg_->robot_model = narrow_robot_model;
+      footprint_spec_ = narrow_footprint_spec;
+      robot_inscribed_radius_ = narrow_inscribed_radius;
+      robot_circumscribed_radius = narrow_circumscribed_radius;
+      narrow_footprint_available_ = true;
+    } else {
+      cfg_->robot_model = base_robot_model_;
+      footprint_spec_ = base_footprint_spec_;
+      robot_inscribed_radius_ = base_robot_inscribed_radius_;
+      robot_circumscribed_radius = base_robot_circumscribed_radius_;
+      narrow_footprint_available_ = false;
+    }
+  } else {
+    cfg_->robot_model = base_robot_model_;
+    footprint_spec_ = base_footprint_spec_;
+    robot_inscribed_radius_ = base_robot_inscribed_radius_;
+    robot_circumscribed_radius = base_robot_circumscribed_radius_;
+  }
+
+  adaptive_env_state_ = current_state;
+}
+
+void TebLocalPlannerROS::updateObstacleContainerWithCostmap()
+{  
    // Add costmap obstacles if desired
    if (cfg_->obstacles.include_costmap_obstacles)
    {
