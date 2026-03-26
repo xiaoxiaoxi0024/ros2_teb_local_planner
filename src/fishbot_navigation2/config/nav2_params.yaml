@@ -242,7 +242,7 @@ controller_server:
       oscillation_recovery_min_duration: 2.0
       oscillation_filter_duration: 4.0
 
-      enable_width_estimation: false
+      enable_width_estimation: True
       num_rays: 5
       ray_spacing: 0.05
       ema_alpha: 0.15
@@ -253,11 +253,11 @@ controller_server:
       narrow_max_vel_theta: 0.45
       narrow_min_obstacle_dist: 0.18
       narrow_min_turning_radius: 0.0
-      enable_dynamic_footprint: false
+      enable_dynamic_footprint: true
       narrow_footprint_vertices: "[[0.17, 0.10], [0.17, -0.10], [-0.17, -0.10], [-0.17, 0.10]]"
       sigmoid_alpha: 5.0
-      enable_curvature_smoothing: false
-      enable_angular_smoothing: false
+      enable_curvature_smoothing: True
+      enable_angular_smoothing: True
 
 local_costmap:
   local_costmap:
@@ -276,7 +276,7 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 2.0
-        inflation_radius: 0.25
+        inflation_radius: 0.1
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
         enabled: True
@@ -331,7 +331,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 2.0
-        inflation_radius: 0.25
+        inflation_radius: 0.1
 
       always_send_full_costmap: True
 

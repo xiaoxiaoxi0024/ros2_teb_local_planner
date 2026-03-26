@@ -290,3 +290,65 @@ colcon build --packages-select teb_local_planner fishbot_navigation2 --event-han
 - 代码能力已经补齐。
 - 论文与实现逻辑已经可以对齐。
 - 但如果要让运行实验也完全进入论文模式，下一步还需要把实验配置参数切到正式版。
+
+## 3.25改动
+
+### 主要内容
+
+本次工作的重点是为四足机器人导航测试生成了 3 个可直接用于 Gazebo 的 SLAM 仿真场景，并接入 `fishbot_description` 的仿真启动链路。
+
+### 新增 3 个 Gazebo SLAM 场景
+
+新增 world 文件：
+
+- `src/fishbot_description/world/slam_narrow_corridor.world`
+- `src/fishbot_description/world/slam_s_curve_corridor.world`
+- `src/fishbot_description/world/slam_l_turn_corridor.world`
+
+对应场景如下：
+
+1. 狭窄直走廊
+   - 尺寸按 8m × 0.55m 构建，墙高 2.4m。
+   - 场景中加入入口 AprilTag、矮柜、纸箱、地砖、白墙和顶灯。
+   - 用于验证超窄通道下的 SLAM 与导航能力。
+
+2. S 型弯路
+   - 总长 12m，通道宽 0.8m，包含两个平滑转向。
+   - 场景中加入弯道 AprilTag、杂物、立柱和门等视觉特征。
+   - 用于验证连续弯道中的定位稳定性与路径跟踪能力。
+
+3. 直角 L 型路
+   - 通道宽 0.7m，两段各长 4m，内角半径 0.3m。
+   - 场景中加入内角 AprilTag、垃圾桶、画框、踢脚线和开关面板。
+   - 用于验证拐角转弯、视角突变和局部重定位表现。
+
+### 场景设计特点
+
+- 3 个场景都按论文要求控制了走廊宽度，分别为 0.55m、0.8m、0.7m。
+- 每个场景都加入了较丰富的室内视觉特征，避免环境过空、纹理过少，提升 SLAM 可观测性。
+- 场景风格尽量贴近真实室内环境，便于后续用于四足机器人导航实验复现。
+
+### 启动链路配套修改
+
+为了让新增场景能够直接通过现有 launch 使用，同时减少 Gazebo 串场问题，对仿真启动链路做了配套整理：
+
+- 在 `src/fishbot_description/launch/gazebo_sim.launch.py` 中加入 `scene:=narrow|s_curve|l_turn` 场景选择参数。
+- 保留 `world:=...` 直接指定 world 文件的方式。
+- 增加独立 `GAZEBO_MASTER_URI`，避免多个 Gazebo 实例共用默认 master。
+- 调整 GUI 启动方式，使 `gzserver` 与 `gzclient` 解耦，降低启动后显示错误场景的概率。
+
+### 验证情况
+
+已完成的验证包括：
+
+- 3 个 `.world` 文件均能正常解析。
+- `fishbot_description` 可正常编译安装。
+- 新增场景可通过 `gazebo_sim.launch.py` 启动。
+- `scene:=narrow` 与 `scene:=s_curve` 启动时，Gazebo master 对应的 world 名分别正确进入：
+  - `slam_narrow_corridor`
+  - `slam_s_curve_corridor`
+
+### 说明
+
+当前这 3 个 world 已经可以作为窄通道、弯道、转角三类典型室内导航测试场景使用。  
+如果后续将机器人模型从当前 `fishbot` 替换为云深处 `lite3`，这些场景文件本身可以继续复用。
