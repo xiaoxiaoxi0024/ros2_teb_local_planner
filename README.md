@@ -47,7 +47,7 @@ git clone https://github.com/xiaoxiaoxi0024/ros2_teb_local_planner.git
 
 **安装依赖**
 ```bash
-cd ~/teb_ws/
+cd ~/teb_ws/ros2_teb_local_planner/
 chmod +x install_dependencies.sh
 bash ./install_dependencies.sh
 ```
